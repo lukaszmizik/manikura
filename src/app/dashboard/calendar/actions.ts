@@ -7,7 +7,10 @@ import { SALON_INFO_ID } from "@/lib/salon";
 
 function isAppAdmin(profileRole: string | null | undefined, userEmail: string | undefined): boolean {
   if (profileRole === "admin") return true;
-  const env = process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "";
+  const env =
+    typeof process !== "undefined" && process.env?.NEXT_PUBLIC_ADMIN_EMAILS
+      ? process.env.NEXT_PUBLIC_ADMIN_EMAILS
+      : "";
   const emails = env.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
   return !!userEmail && emails.includes(userEmail.toLowerCase());
 }

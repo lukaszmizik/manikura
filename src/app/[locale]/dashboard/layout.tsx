@@ -44,7 +44,9 @@ export default async function DashboardLayout({ children, params }: Props) {
   const roleFromDb = (roleRaw === "admin" ? "admin" : "client") as "admin" | "client";
 
   const adminEmailsEnv =
-    process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "";
+    typeof process !== "undefined" && process.env?.NEXT_PUBLIC_ADMIN_EMAILS
+      ? process.env.NEXT_PUBLIC_ADMIN_EMAILS
+      : "";
   const adminEmails = adminEmailsEnv
     .split(",")
     .map((e) => e.trim().toLowerCase())
