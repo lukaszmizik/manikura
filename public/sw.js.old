@@ -1,0 +1,43 @@
+const CACHE_NAME = 'manikura-pwa-v1';
+const urlsToCache = ['/', '/manifest.json', '/icons/icon-192.png'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(
+        urlsToCache.map((url) => cache.add(url).catch(() => {}))
+      )
+    )
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(names.map((name) => name !== CACHE_NAME && caches.delete(name)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  const hasDynamicParams = url.search && url.search.length > 0;
+
+  if (event.request.mode === 'navigate' || event.request.url.endsWith('.html')) {
+    if (hasDynamicParams) {
+      event.respondWith(fetch(event.request));
+      return;
+    }
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches.match('/').then((r) => r || new Response('Offline'))
+      )
+    );
+    return;
+  }
+  event.respondWith(
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
+  );
+});

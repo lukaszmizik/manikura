@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fef7f8;
+  --foreground: #1a0a0d;
+  --primary: #cb3a5f;
+  --primary-foreground: #fff;
+}
+
+/* Téma noc – neutrální tmavá šedá (slate), bez červených tónů */
+html.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  min-height: 100dvh;
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  /* Prostor pod obsahem, aby spodní fixed lišta nepřekrývala konec stránky (výška lišty + safe area) */
+  .bottom-bar-spacer {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0));
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #daily-program,
+  #daily-program * {
+    visibility: visible;
+  }
+  #daily-program {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
