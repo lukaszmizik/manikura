@@ -26,7 +26,7 @@ export async function createClient() {
   );
 }
 
-/** Klient s service role – pouze na serveru, když už jsme ověřili oprávnění (např. admin podle DB nebo ADMIN_EMAILS). Obchází RLS. */
+/** Klient s service role – pouze na serveru, když už jsme ověřili oprávnění (např. admin podle DB nebo NEXT_PUBLIC_ADMIN_EMAILS). Obchází RLS. */
 export function createServerAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
