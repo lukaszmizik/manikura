@@ -25,9 +25,25 @@ export default async function TermsPage({ params }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect({ href: "/auth/login", locale });
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user!.id).single();
+  const roleRaw = profile?.role != null ? String(profile.role).toLowerCase().trim() : null;
+  const roleFromDb = (roleRaw === "admin" ? "admin" : "client") as "admin" | "client";
+
+  const adminEmailsEnv =
+    typeof process !== "undefined" && process.env?.NEXT_PUBLIC_ADMIN_EMAILS
+      ? process.env.NEXT_PUBLIC_ADMIN_EMAILS
+      : "";
+  const adminEmails = adminEmailsEnv
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const emailLower = user?.email?.toLowerCase() ?? "";
+  const isAdmin =
+    adminEmails.length > 0 && emailLower && adminEmails.includes(emailLower)
+      ? true
+      : roleFromDb === "admin";
   const localeStr = locale === "ru" ? "ru-RU" : "cs-CZ";
 
-  if (profile?.role === "admin") {
+  if (isAdmin) {
     const [
       { data: pendingData },
       { data: confirmedData },

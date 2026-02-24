@@ -45,7 +45,22 @@ export default async function CalendarPage({ params, searchParams }: PageProps) 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user!.id).single();
-  const isAdmin = profile?.role === "admin";
+  const roleRaw = profile?.role != null ? String(profile.role).toLowerCase().trim() : null;
+  const roleFromDb = (roleRaw === "admin" ? "admin" : "client") as "admin" | "client";
+
+  const adminEmailsEnv =
+    typeof process !== "undefined" && process.env?.NEXT_PUBLIC_ADMIN_EMAILS
+      ? process.env.NEXT_PUBLIC_ADMIN_EMAILS
+      : "";
+  const adminEmails = adminEmailsEnv
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const emailLower = user?.email?.toLowerCase() ?? "";
+  const isAdmin =
+    adminEmails.length > 0 && emailLower && adminEmails.includes(emailLower)
+      ? true
+      : roleFromDb === "admin";
   const weekStart = weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam)
     ? getMonday(new Date(weekParam + "T12:00:00"))
     : getMonday(new Date());
