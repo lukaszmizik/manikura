@@ -258,6 +258,7 @@ export async function createBooking(clientId: string, date: string, startTime: s
 export async function createGuestBookingWithMagicLink(payload: {
   email: string;
   displayName: string | null;
+  phone: string | null;
   date: string;
   startTime: string;
   endTime: string;
@@ -283,8 +284,13 @@ export async function createGuestBookingWithMagicLink(payload: {
 
   let clientId: string;
 
+  const phoneTrimmed = (payload.phone ?? "").trim() || null;
+
   if (profiles && profiles.length > 0) {
     clientId = (profiles[0] as { id: string }).id;
+    if (phoneTrimmed) {
+      await adminClient.from("profiles").update({ phone: phoneTrimmed }).eq("id", clientId);
+    }
   } else {
     const displayNameTrimmed = (payload.displayName ?? "").trim();
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -310,6 +316,7 @@ export async function createGuestBookingWithMagicLink(payload: {
         email,
         display_name: profileDisplayName,
         role: "client",
+        phone: phoneTrimmed,
       },
       { onConflict: "id" }
     );
@@ -342,12 +349,20 @@ export async function createGuestBookingWithMagicLink(payload: {
     const hasWarning = Array.isArray(clientWarnings) && clientWarnings.length > 0;
     autoApproveForClient = autoApprove && !hasWarning;
 
-    const updates: { client_id: string; status?: string; updated_at: string } = {
+    const updates: {
+      client_id: string;
+      status?: string;
+      updated_at: string;
+      note?: string | null;
+    } = {
       client_id: clientId,
       updated_at: new Date().toISOString(),
     };
     if (autoApproveForClient) {
       updates.status = "confirmed";
+    }
+    if (phoneTrimmed) {
+      updates.note = `Tel: ${phoneTrimmed}`;
     }
 
     const { error: updateErr } = await adminClient
@@ -375,6 +390,7 @@ export async function createGuestBookingWithMagicLink(payload: {
     status: "pending",
     is_last_minute: payload.isLastMinute,
     last_minute_price: payload.lastMinutePrice,
+    note: phoneTrimmed ? `Tel: ${phoneTrimmed}` : null,
   });
   if (error) {
     return { error: isOverlapError(error) ? SLOT_TAKEN_ERROR : error.message };

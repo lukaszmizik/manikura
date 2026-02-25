@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Fragment } from "react";
+import { useState, useCallback, Fragment, useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -125,6 +125,12 @@ export function AdminCalendarGrid({
 
   const [newModal, setNewModal] = useState<{ date: string; time: string } | null>(null);
   const [detailApt, setDetailApt] = useState<AppointmentForGrid | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const prevWeekStart = new Date(monday.getTime() - 7 * 24 * 60 * 60 * 1000);
   const nextWeekStart = new Date(monday.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -365,12 +371,34 @@ export function AdminCalendarGrid({
           {weekDays.map((d, colIndex) => {
             const dateKey = toDateKey(d);
             const dayAppointments = byDay[dateKey] ?? [];
+            const isToday = dateKey === todayKey;
+            const displayEndMinutes = parseTimeToMinutes(displayEnd);
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const showNowLine =
+              isToday &&
+              nowMinutes >= displayStartMinutes &&
+              nowMinutes < displayEndMinutes;
+            const nowLineTopPx =
+              showNowLine
+                ? ((nowMinutes - displayStartMinutes) / 30) * ROW_HEIGHT_PX
+                : 0;
+
             return (
               <div
                 key={dateKey}
                 className="relative pointer-events-none"
                 style={{ gridColumn: colIndex + 2, gridRow: "2 / -1" }}
               >
+                {showNowLine && (
+                  <div
+                    className="absolute left-0 right-0 flex items-center z-10 pointer-events-none"
+                    style={{ top: nowLineTopPx - 1 }}
+                    aria-hidden
+                  >
+                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                    <span className="flex-1 h-0.5 bg-red-500" />
+                  </div>
+                )}
                 {dayAppointments.map((apt) => {
                   const start = new Date(apt.start_at);
                   const end = new Date(apt.end_at);
@@ -380,7 +408,7 @@ export function AdminCalendarGrid({
                   const heightPx = Math.max(24, (dur / 30) * ROW_HEIGHT_PX);
                   const isVolno = !apt.client_id && !(apt.guest_client_name && apt.guest_client_name.trim());
                   const displayName = isVolno
-                    ? t("volno")
+                    ? t("unoccupiedSlot")
                     : (apt.guest_client_name && apt.guest_client_name.trim()) ||
                       (apt.client && typeof apt.client === "object" && "display_name" in apt.client
                         ? (apt.client.display_name ?? t("noClient"))

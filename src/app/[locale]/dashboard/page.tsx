@@ -6,6 +6,7 @@ import {
   Users,
   Image as ImageIcon,
   AlertCircle,
+  BarChart3,
   CalendarDays,
   MessageSquare,
 } from "lucide-react";
@@ -153,7 +154,7 @@ export default async function DashboardPage({ params }: Props) {
                     })}
                   </span>
                   <span className="text-primary-700 dark:text-primary-300">
-                    {(apt.client_id && clientNames[apt.client_id]) ?? (apt.guest_client_name && apt.guest_client_name.trim()) ?? "—"}
+                    {(apt.client_id && clientNames[apt.client_id]) ?? (apt.guest_client_name && apt.guest_client_name.trim()) ?? tCommon("unoccupiedSlot")}
                   </span>
                 </li>
               ))}
@@ -173,7 +174,7 @@ export default async function DashboardPage({ params }: Props) {
             <span className="font-medium text-primary-800 dark:text-primary-100">{t("clients")}</span>
           </Link>
           <Link href="/dashboard/reports" className="flex flex-col items-center gap-2 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/50 border border-primary-100 dark:border-primary-800">
-            <AlertCircle className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+            <BarChart3 className="w-8 h-8 text-primary-600 dark:text-primary-400" />
             <span className="font-medium text-primary-800 dark:text-primary-100">{t("reports")}</span>
           </Link>
           <Link href="/dashboard/notifications" className="flex flex-col items-center gap-2 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/50 border border-primary-100 dark:border-primary-800">

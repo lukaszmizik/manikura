@@ -34,6 +34,7 @@ export function GuestBookingForm({
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +67,7 @@ export function GuestBookingForm({
     const res = await createGuestBookingWithMagicLink({
       email: emailTrimmed,
       displayName: name.trim() || null,
+      phone: phone.trim() || null,
       date: selectedDate,
       startTime: selectedSlot.start,
       endTime: selectedSlot.end,
@@ -147,6 +149,16 @@ export function GuestBookingForm({
             required
             className="mt-1 block w-full rounded-lg border border-primary-200 px-3 py-2 text-primary-900"
             placeholder={t("emailPlaceholder")}
+          />
+        </label>
+        <label className="block">
+          <span className="text-sm font-medium text-primary-800">{t("phoneLabel")}</span>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="mt-1 block w-full rounded-lg border border-primary-200 px-3 py-2 text-primary-900"
+            placeholder={t("phonePlaceholder")}
           />
         </label>
       </div>

@@ -2,6 +2,7 @@ import { createServerAdminClient } from "@/lib/supabase/server";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { getFreeSlotsForDate } from "@/lib/slots";
 import { SALON_INFO_ID } from "@/lib/salon";
 import { GuestBookingForm } from "@/components/calendar/GuestBookingForm";
@@ -167,12 +168,15 @@ export default async function GuestBookingPage({ params, searchParams }: PagePro
 
   return (
     <div className="min-h-screen flex flex-col p-4">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-2 text-primary-600 text-sm mb-4"
-      >
-        ← {t("backToHome")}
-      </Link>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-primary-600 text-sm"
+        >
+          ← {t("backToHome")}
+        </Link>
+        <LanguageSwitcher />
+      </div>
       <div className="flex-1 max-w-md w-full mx-auto space-y-4">
         <h1 className="text-2xl font-bold text-primary-800">{t("title")}</h1>
         <p className="text-sm text-primary-600">{t("desc")}</p>
