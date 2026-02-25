@@ -80,7 +80,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps) 
     ] = await Promise.all([
       supabase
         .from("appointments")
-        .select("id, client_id, guest_client_name, start_at, end_at, status, is_last_minute, client_change_reason, client_change_requested_at, client:profiles!client_id(display_name)")
+        .select("id, client_id, guest_client_name, start_at, end_at, status, is_last_minute, note, client_change_reason, client_change_requested_at, client:profiles!client_id(display_name)")
         .in("status", ["pending", "confirmed", "completed"])
         .gte("start_at", weekStart.toISOString())
         .lte("start_at", weekEnd.toISOString())
@@ -113,6 +113,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps) 
       end_at: string;
       status: string;
       is_last_minute?: boolean;
+      note?: string | null;
       client_change_reason?: string | null;
       client_change_requested_at?: string | null;
       client?: { display_name: string | null } | null;

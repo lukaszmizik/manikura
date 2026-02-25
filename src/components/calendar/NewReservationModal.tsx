@@ -13,12 +13,16 @@ type NewReservationModalProps = {
   clients: ClientOption[];
   defaultSlotMinutes?: number;
   existingOnDay?: ExistingAppointment[];
-  onSave: (
-    clientId: string | null,
-    startAtIso: string,
-    endAtIso: string,
-    note: string | null
-  ) => Promise<string | null>;
+  onSave: (params: {
+    clientId: string | null;
+    guestClientName: string | null;
+    saveGuest: boolean;
+    startAtIso: string;
+    endAtIso: string;
+    note: string | null;
+    isLastMinute: boolean;
+    ignoreWarnings?: boolean;
+  }) => Promise<string | null>;
   onClose: () => void;
 };
 
@@ -43,6 +47,8 @@ export function NewReservationModal({
   const t = useTranslations("calendar");
   const tCommon = useTranslations("common");
   const [clientId, setClientId] = useState("");
+  const [guestClientName, setGuestClientName] = useState("");
+  const [saveGuest, setSaveGuest] = useState(false);
   const [startTime, setStartTime] = useState(initialTime);
   const [endTime, setEndTime] = useState(() => {
     const [h, m] = initialTime.split(":").map(Number);
@@ -56,6 +62,8 @@ export function NewReservationModal({
   const [saving, setSaving] = useState(false);
   const [confirmOverlap, setConfirmOverlap] = useState<{
     clientId: string | null;
+    guestClientName: string | null;
+    saveGuest: boolean;
     startAtIso: string;
     endAtIso: string;
     note: string | null;
@@ -64,6 +72,19 @@ export function NewReservationModal({
   const startAt = new Date(`${initialDate}T${startTime}`);
   const endAt = new Date(`${initialDate}T${endTime}`);
   const timeValid = endAt.getTime() > startAt.getTime();
+
+  const [warning, setWarning] = useState<{
+    summary: string;
+    payload: {
+      clientId: string | null;
+      guestClientName: string | null;
+      saveGuest: boolean;
+      startAtIso: string;
+      endAtIso: string;
+      note: string | null;
+      isLastMinute: boolean;
+    };
+  } | null>(null);
 
   const hasOverlap = timeValid && existingOnDay.some((apt) =>
     intervalsOverlap(
@@ -74,23 +95,49 @@ export function NewReservationModal({
     )
   );
 
-  const doSave = async (
-    clientIdOrNull: string | null,
-    startAtIso: string,
-    endAtIso: string,
-    noteOrNull: string | null
-  ) => {
+  const doSave = async (params: {
+    clientId: string | null;
+    guestClientName: string | null;
+    saveGuest: boolean;
+    startAtIso: string;
+    endAtIso: string;
+    note: string | null;
+    isLastMinute: boolean;
+    ignoreWarnings?: boolean;
+  }) => {
     setError(null);
+    setWarning(null);
     setSaving(true);
-    const err = await onSave(clientIdOrNull, startAtIso, endAtIso, noteOrNull);
+    const err = await onSave(params);
     setSaving(false);
-    if (err) setError(err);
-    else setConfirmOverlap(null);
+    if (err) {
+      if (err.startsWith("CLIENT_WARNING:")) {
+        const summary = err.slice("CLIENT_WARNING:".length).trim();
+        setWarning({
+          summary,
+          payload: {
+            clientId: params.clientId,
+            guestClientName: params.guestClientName,
+            saveGuest: params.saveGuest,
+            startAtIso: params.startAtIso,
+            endAtIso: params.endAtIso,
+            note: params.note,
+            isLastMinute: params.isLastMinute,
+          },
+        });
+        return;
+      }
+      setError(err);
+    } else {
+      setConfirmOverlap(null);
+      setWarning(null);
+    }
   };
 
   const handleAddVolnoSlot = async () => {
     setError(null);
     setConfirmOverlap(null);
+    setWarning(null);
     if (!timeValid) {
       setError("Čas konce musí být po čase začátku.");
       return;
@@ -98,47 +145,86 @@ export function NewReservationModal({
     if (hasOverlap) {
       setConfirmOverlap({
         clientId: null,
+        guestClientName: null,
+        saveGuest: false,
         startAtIso: startAt.toISOString(),
         endAtIso: endAt.toISOString(),
         note: note.trim() || null,
       });
       return;
     }
-    await doSave(null, startAt.toISOString(), endAt.toISOString(), note.trim() || null);
+    await doSave({
+      clientId: null,
+      guestClientName: null,
+      saveGuest: false,
+      startAtIso: startAt.toISOString(),
+      endAtIso: endAt.toISOString(),
+      note: note.trim() || null,
+      isLastMinute: false,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setConfirmOverlap(null);
-    if (!clientId.trim()) {
-      setError(t("chooseClient"));
+    setWarning(null);
+    const hasClient = clientId.trim() !== "";
+    const hasGuestName = guestClientName.trim() !== "";
+    if (!hasClient && !hasGuestName) {
+      setError(t("chooseClientOrGuest"));
+      return;
+    }
+    if (hasClient && hasGuestName) {
+      setError(t("chooseClientOrGuestOnlyOne"));
       return;
     }
     if (!timeValid) {
       setError("Čas konce musí být po čase začátku.");
       return;
     }
+    const payload = {
+      clientId: hasClient ? clientId : null,
+      guestClientName: hasGuestName ? guestClientName.trim() : null,
+      saveGuest: hasGuestName ? saveGuest : false,
+      startAtIso: startAt.toISOString(),
+      endAtIso: endAt.toISOString(),
+      note: note.trim() || null,
+      isLastMinute: false,
+    };
     if (hasOverlap) {
       setConfirmOverlap({
-        clientId,
-        startAtIso: startAt.toISOString(),
-        endAtIso: endAt.toISOString(),
-        note: note.trim() || null,
+        clientId: payload.clientId,
+        guestClientName: payload.guestClientName,
+        saveGuest: payload.saveGuest,
+        startAtIso: payload.startAtIso,
+        endAtIso: payload.endAtIso,
+        note: payload.note,
       });
       return;
     }
-    await doSave(clientId, startAt.toISOString(), endAt.toISOString(), note.trim() || null);
+    await doSave(payload);
   };
 
   const handleConfirmOverlapSave = () => {
     if (!confirmOverlap) return;
-    doSave(
-      confirmOverlap.clientId,
-      confirmOverlap.startAtIso,
-      confirmOverlap.endAtIso,
-      confirmOverlap.note
-    );
+    doSave({
+      clientId: confirmOverlap.clientId,
+      guestClientName: confirmOverlap.guestClientName,
+      saveGuest: confirmOverlap.saveGuest,
+      startAtIso: confirmOverlap.startAtIso,
+      endAtIso: confirmOverlap.endAtIso,
+      note: confirmOverlap.note,
+      isLastMinute: false,
+    });
+  };
+
+  const handleConfirmWarning = () => {
+    if (!warning) return;
+    doSave({
+      ...warning.payload,
+      ignoreWarnings: true,
+    });
   };
 
   return (
@@ -187,6 +273,31 @@ export function NewReservationModal({
                   className="flex-1 py-2 rounded-xl bg-amber-500 text-white font-medium disabled:opacity-50"
                 >
                   {saving ? "…" : t("overlapConfirmSave")}
+                </button>
+              </div>
+            </div>
+          )}
+          {warning && (
+            <div className="rounded-xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-600 p-3 space-y-3">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Chcete naplánovat klientku s&nbsp;výstrahou:{" "}
+                <span className="font-semibold">{warning.summary}</span>?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWarning(null)}
+                  className="flex-1 py-2 rounded-xl border border-amber-600 text-amber-800 dark:text-amber-200 font-medium"
+                >
+                  {tCommon("cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmWarning}
+                  disabled={saving}
+                  className="flex-1 py-2 rounded-xl bg-amber-500 text-white font-medium disabled:opacity-50"
+                >
+                  {saving ? "…" : "OK"}
                 </button>
               </div>
             </div>
@@ -267,7 +378,10 @@ export function NewReservationModal({
               </label>
               <select
                 value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
+                onChange={(e) => {
+                  setClientId(e.target.value);
+                  if (e.target.value) setGuestClientName("");
+                }}
                 className="w-full rounded-lg border border-primary-200 dark:border-primary-700 bg-white dark:bg-primary-900 px-3 py-2 text-primary-900 dark:text-primary-100"
               >
                 <option value="">{t("chooseClient")}</option>
@@ -277,6 +391,33 @@ export function NewReservationModal({
                   </option>
                 ))}
               </select>
+            </div>
+            <p className="text-xs text-primary-500 dark:text-primary-400">{t("guestClientOrSelect")}</p>
+            <div>
+              <label className="block text-sm font-medium text-primary-700 dark:text-primary-300 mb-1">
+                {t("guestClientNameLabel")}
+              </label>
+              <input
+                type="text"
+                value={guestClientName}
+                onChange={(e) => {
+                  setGuestClientName(e.target.value);
+                  if (e.target.value.trim()) setClientId("");
+                }}
+                placeholder={t("guestClientNamePlaceholder")}
+                className="w-full rounded-lg border border-primary-200 dark:border-primary-700 bg-white dark:bg-primary-900 px-3 py-2 text-primary-900 dark:text-primary-100"
+              />
+              {guestClientName.trim() && (
+                <label className="mt-2 flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={saveGuest}
+                    onChange={(e) => setSaveGuest(e.target.checked)}
+                    className="rounded border-primary-300"
+                  />
+                  <span className="text-sm text-primary-700 dark:text-primary-300">{t("saveGuestAccount")}</span>
+                </label>
+              )}
             </div>
             {error && (
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

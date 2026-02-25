@@ -46,6 +46,7 @@ export type AppointmentForGrid = {
   end_at: string;
   status: string;
   is_last_minute?: boolean;
+  note?: string | null;
   client_change_reason?: string | null;
   client_change_requested_at?: string | null;
   client?: { display_name: string | null } | null;
@@ -158,6 +159,7 @@ export function AdminCalendarGrid({
       endAtIso: string;
       note: string | null;
       isLastMinute: boolean;
+      ignoreWarnings?: boolean;
     }) => {
       const res = await createAppointmentByAdmin(params);
       if (res.error) {
@@ -430,15 +432,16 @@ export function AdminCalendarGrid({
           clients={clients}
           defaultSlotMinutes={defaultSlotMinutes}
           existingOnDay={(byDay[newModal.date] ?? []).map((a) => ({ start_at: a.start_at, end_at: a.end_at }))}
-          onSave={async (clientIdOrNull, startAtIso, endAtIso, note) =>
+          onSave={async (params) =>
             handleCreate({
-              clientId: clientIdOrNull ?? null,
-              guestClientName: null,
-              saveGuest: false,
-              startAtIso,
-              endAtIso,
-              note,
-              isLastMinute: false,
+              clientId: params.clientId ?? null,
+              guestClientName: params.guestClientName ?? null,
+              saveGuest: params.saveGuest,
+              startAtIso: params.startAtIso,
+              endAtIso: params.endAtIso,
+              note: params.note,
+              isLastMinute: params.isLastMinute,
+              ignoreWarnings: params.ignoreWarnings,
             })
           }
           onClose={() => setNewModal(null)}

@@ -254,11 +254,23 @@ export async function createBooking(clientId: string, date: string, startTime: s
   return { error: null };
 }
 
-/** Klientka se přiřadí k volnému slotu (appointment s client_id = null). Při zapnutém auto_approve a bez výstrahy se termín uloží rovnou jako potvrzený. */
+/** Klientka se přiřadí k volnému slotu (appointment s client_id = null a bez guest_client_name). Při zapnutém auto_approve a bez výstrahy se termín uloží rovnou jako potvrzený. */
 export async function claimSlot(appointmentId: string): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Nejste přihlášeni." };
+
+  const { data: apt, error: fetchErr } = await supabase
+    .from("appointments")
+    .select("id, client_id, guest_client_name")
+    .eq("id", appointmentId)
+    .single();
+  if (fetchErr || !apt) return { error: SLOT_TAKEN_ERROR };
+  if ((apt as { client_id: string | null }).client_id != null) return { error: SLOT_TAKEN_ERROR };
+  const guestName = (apt as { guest_client_name?: string | null }).guest_client_name;
+  if (guestName != null && guestName.trim() !== "") {
+    return { error: SLOT_TAKEN_ERROR };
+  }
 
   const [{ data: salon }, { data: warnings }] = await Promise.all([
     supabase.from("salon_info").select("auto_approve_bookings").eq("id", SALON_INFO_ID).single(),
@@ -314,6 +326,7 @@ export async function createAppointmentByAdmin(
     endAtIso: string;
     note: string | null;
     isLastMinute: boolean;
+    ignoreWarnings?: boolean;
   }
 ) {
   const supabase = await createClient();
@@ -322,7 +335,7 @@ export async function createAppointmentByAdmin(
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (!isAppAdmin(profile?.role ?? null, user.email)) return { error: "Pouze pro admina." };
 
-  const { clientId, guestClientName, saveGuest, startAtIso, endAtIso, note, isLastMinute } = payload;
+  const { clientId, guestClientName, saveGuest, startAtIso, endAtIso, note, isLastMinute, ignoreWarnings } = payload;
   const adminClient = createServerAdminClient();
 
   let resolvedClientId: string | null = clientId;
@@ -353,10 +366,24 @@ export async function createAppointmentByAdmin(
   if (resolvedClientId) {
     const [{ data: salonRow }, { data: clientWarnings }] = await Promise.all([
       adminClient.from("salon_info").select("auto_approve_bookings").eq("id", SALON_INFO_ID).single(),
-      adminClient.from("client_warnings").select("id").eq("client_id", resolvedClientId).limit(1),
+      adminClient
+        .from("client_warnings")
+        .select("warning_type, reason")
+        .eq("client_id", resolvedClientId),
     ]);
     const autoApprove = (salonRow as { auto_approve_bookings?: boolean } | null)?.auto_approve_bookings === true;
-    const hasWarning = Array.isArray(clientWarnings) && clientWarnings.length > 0;
+    const warningsArr = (clientWarnings ?? []) as { warning_type: string; reason: string | null }[];
+    const hasWarning = warningsArr.length > 0;
+
+    // Pokud má klientka výstrahu a admin ji chce ručně naplánovat, nejprve ho na to upozorníme.
+    if (hasWarning && !ignoreWarnings) {
+      const summary = warningsArr
+        .map((w) => (w.reason && w.reason.trim()) || w.warning_type || "výstraha")
+        .join("; ");
+      // Speciální prefix pro klientskou logiku – zobrazí se potvrzovací dialog.
+      return { error: `CLIENT_WARNING:${summary}` };
+    }
+
     autoApproveForClient = autoApprove && !hasWarning;
   }
 

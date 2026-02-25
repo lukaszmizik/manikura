@@ -44,6 +44,7 @@ export default async function TermsPage({ params }: PageProps) {
   const localeStr = locale === "ru" ? "ru-RU" : "cs-CZ";
 
   if (isAdmin) {
+    const nowIso = new Date().toISOString();
     const [
       { data: pendingData },
       { data: confirmedData },
@@ -51,18 +52,18 @@ export default async function TermsPage({ params }: PageProps) {
     ] = await Promise.all([
       supabase
         .from("appointments")
-        .select("id, start_at, end_at, status, client:profiles!client_id(display_name)")
+        .select("id, start_at, end_at, status, client_id, client:profiles!client_id(display_name)")
         .not("client_id", "is", null)
         .eq("status", "pending")
         .is("cancellation_requested_at", null)
-        .gte("end_at", new Date().toISOString())
+        .gte("end_at", nowIso)
         .order("start_at", { ascending: true }),
       supabase
         .from("appointments")
         .select("id, start_at, end_at, status, client:profiles!client_id(display_name)")
         .not("client_id", "is", null)
         .eq("status", "confirmed")
-        .gte("end_at", new Date().toISOString())
+        .gte("end_at", nowIso)
         .order("start_at", { ascending: true }),
       supabase
         .from("appointments")
@@ -70,7 +71,7 @@ export default async function TermsPage({ params }: PageProps) {
         .not("client_id", "is", null)
         .not("cancellation_requested_at", "is", null)
         .is("cancellation_requested_read_at", null)
-        .gte("end_at", new Date().toISOString())
+        .gte("end_at", nowIso)
         .order("start_at", { ascending: true }),
     ]);
 
@@ -79,9 +80,17 @@ export default async function TermsPage({ params }: PageProps) {
       start_at: string;
       end_at: string;
       status: string;
+      client_id: string | null;
       client?: { display_name: string | null }[] | { display_name: string | null } | null;
     };
-    type AptRow = { id: string; start_at: string; end_at: string; status: string; client: { display_name: string | null } | null };
+    type AptRow = {
+      id: string;
+      start_at: string;
+      end_at: string;
+      status: string;
+      client_id: string | null;
+      client: { display_name: string | null } | null;
+    };
     const norm = (arr: AptRowRaw[]): AptRow[] =>
       arr.map((r) => {
         const raw = r.client;
@@ -89,9 +98,29 @@ export default async function TermsPage({ params }: PageProps) {
         return { ...r, client };
       });
     const cancellationRequestsList = norm((cancellationRequestsData ?? []) as AptRowRaw[]);
-    const pendingList = norm((pendingData ?? []) as AptRowRaw[]);
+    const pendingAll = norm((pendingData ?? []) as AptRowRaw[]);
     type ConfirmedRow = AptRow;
     const confirmedList = norm((confirmedData ?? []) as AptRowRaw[]);
+
+    // Klientky s výstrahou (client_warnings) se v sekci „Termíny k potvrzení“ neukazují.
+    let pendingList: AptRow[] = pendingAll;
+    const pendingClientIds = Array.from(
+      new Set(
+        pendingAll
+          .map((p) => p.client_id)
+          .filter((id): id is string => !!id)
+      )
+    );
+    if (pendingClientIds.length > 0) {
+      const { data: warningRows } = await supabase
+        .from("client_warnings")
+        .select("client_id")
+        .in("client_id", pendingClientIds);
+      const warnedIds = new Set(
+        (warningRows ?? []).map((w) => (w as { client_id: string }).client_id)
+      );
+      pendingList = pendingAll.filter((p) => !warnedIds.has(p.client_id ?? ""));
+    }
 
     function toLocalDateKey(iso: string): string {
       const d = new Date(iso);

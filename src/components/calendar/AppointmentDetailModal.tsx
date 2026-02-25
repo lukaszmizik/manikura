@@ -6,6 +6,41 @@ import { Link } from "@/i18n/navigation";
 import { X, User, Pencil, Trash2, Unlock } from "lucide-react";
 import type { AppointmentForGrid, ClientOption } from "./AdminCalendarGrid";
 
+/** Rozdělí text na úseky a čísla odpovídající telefonu (8–15 cifer) převede na klikací tel: odkazy. */
+function noteWithClickablePhones(text: string): (string | React.ReactNode)[] {
+  const parts: (string | React.ReactNode)[] = [];
+  const re = /(?:\+\s*)?\d[\d\s\-\.\(\)]{5,}/g;
+  let lastIndex = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const raw = m[0];
+    const digitsOnly = raw.replace(/\D/g, "");
+    if (digitsOnly.length >= 8 && digitsOnly.length <= 15) {
+      if (m.index > lastIndex) {
+        parts.push(text.slice(lastIndex, m.index));
+      }
+      const telHref = raw.trimStart().startsWith("+")
+        ? "+" + digitsOnly
+        : digitsOnly;
+      parts.push(
+        <a
+          key={key++}
+          href={`tel:${telHref}`}
+          className="text-primary-600 dark:text-primary-400 underline hover:no-underline break-all"
+        >
+          {raw}
+        </a>
+      );
+      lastIndex = re.lastIndex;
+    }
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts.length ? parts : [text];
+}
+
 type AppointmentDetailModalProps = {
   appointment: AppointmentForGrid;
   localeStr: string;
@@ -152,6 +187,15 @@ export function AppointmentDetailModal({
             {" – "}
             {end.toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit" })}
           </p>
+
+          {(appointment.note != null && appointment.note.trim() !== "") && (
+            <div className="rounded-xl border border-primary-100 dark:border-primary-800 bg-primary-50/30 dark:bg-primary-900/20 p-3">
+              <p className="text-xs font-medium text-primary-500 dark:text-primary-400 mb-1">{t("note")}</p>
+              <p className="text-sm text-primary-700 dark:text-primary-300 whitespace-pre-wrap">
+                {noteWithClickablePhones(appointment.note.trim())}
+              </p>
+            </div>
+          )}
 
           {isPending && !isVolno && (
             <p className="text-sm text-primary-500 dark:text-primary-400 rounded-xl border border-primary-100 dark:border-primary-800 bg-primary-50/30 dark:bg-primary-900/20 p-3">

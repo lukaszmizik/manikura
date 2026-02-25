@@ -22,6 +22,12 @@ export default async function CalendarBookPage({ params, searchParams }: Props) 
   const today = new Date();
   const dateStr = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : today.toISOString().slice(0, 10);
 
+  // Stejně jako u admin kalendáře: den v lokálním čase převedený na ISO, aby nedošlo k posunu o hodinu (UTC vs CET).
+  const startOfDay = new Date(`${dateStr}T00:00:00`);
+  const endOfDay = new Date(`${dateStr}T23:59:59.999`);
+  const startOfDayIso = startOfDay.toISOString();
+  const endOfDayIso = endOfDay.toISOString();
+
   const [
     { data: restrictions },
     { data: appointments },
@@ -32,9 +38,9 @@ export default async function CalendarBookPage({ params, searchParams }: Props) 
     supabase.from("availability_restrictions").select("restriction_date").eq("restriction_date", dateStr),
     supabase
       .from("appointments")
-      .select("id, client_id, start_at, end_at")
-      .gte("start_at", `${dateStr}T00:00:00`)
-      .lte("start_at", `${dateStr}T23:59:59`)
+      .select("id, client_id, guest_client_name, start_at, end_at")
+      .gte("start_at", startOfDayIso)
+      .lte("start_at", endOfDayIso)
       .in("status", ["pending", "confirmed", "completed"]),
     supabase.from("last_minute_offers").select("start_time, end_time, price_czk").eq("offer_date", dateStr),
     supabase
@@ -42,8 +48,8 @@ export default async function CalendarBookPage({ params, searchParams }: Props) 
       .select("id, start_at, end_at, status")
       .eq("client_id", user!.id)
       .in("status", ["pending", "confirmed"])
-      .gte("start_at", `${dateStr}T00:00:00`)
-      .lte("start_at", `${dateStr}T23:59:59`)
+      .gte("start_at", startOfDayIso)
+      .lte("start_at", endOfDayIso)
       .order("start_at", { ascending: true }),
     supabase
       .from("quick_booking_requests")
