@@ -14,7 +14,6 @@ type ChangePasswordFormProps = {
 export function ChangePasswordForm({ userEmail }: ChangePasswordFormProps) {
   const t = useTranslations("myProfile");
   const tCommon = useTranslations("common");
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,17 +37,6 @@ export function ChangePasswordForm({ userEmail }: ChangePasswordFormProps) {
     setLoading(true);
     const supabase = createClient();
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: userEmail,
-      password: currentPassword,
-    });
-
-    if (signInError) {
-      setLoading(false);
-      setError(t("changePasswordErrorWrong"));
-      return;
-    }
-
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -60,7 +48,6 @@ export function ChangePasswordForm({ userEmail }: ChangePasswordFormProps) {
     }
 
     setSuccess(true);
-    setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
   };
@@ -72,19 +59,6 @@ export function ChangePasswordForm({ userEmail }: ChangePasswordFormProps) {
         {t("changePassword")}
       </h3>
       <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
-        <label className="block">
-          <span className="text-sm font-medium text-primary-800 dark:text-primary-200">
-            {t("currentPassword")}
-          </span>
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className="mt-1 block w-full rounded-lg border border-primary-200 dark:border-primary-700 px-3 py-2 text-primary-900 dark:text-primary-100 bg-white dark:bg-primary-950"
-          />
-        </label>
         <label className="block">
           <span className="text-sm font-medium text-primary-800 dark:text-primary-200">
             {t("newPassword")}

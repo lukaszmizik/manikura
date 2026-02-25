@@ -42,8 +42,18 @@ export function getFreeSlotsForDate(
 
   // 1) Sloty z volných termínů (admin je vytvořil v kalendáři)
   for (const apt of volno) {
-    const aptStart = apt.start_at.slice(11, 16);
-    const aptEnd = apt.end_at.slice(11, 16);
+    const startDate = new Date(apt.start_at);
+    const endDate = new Date(apt.end_at);
+    const aptStart = startDate.toLocaleTimeString("cs-CZ", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const aptEnd = endDate.toLocaleTimeString("cs-CZ", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
     const lm = lastMinuteOffers.find((o) => {
       const oStart = o.start_time.slice(0, 5);
       const oEnd = o.end_time.slice(0, 5);

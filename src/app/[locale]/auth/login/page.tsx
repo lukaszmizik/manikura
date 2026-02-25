@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -15,6 +15,23 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
+
+  // Pokud už je uživatel přihlášený (např. po kliknutí na magic link),
+  // rovnou ho pošleme na přehled termínů.
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!isMounted) return;
+      if (data?.user) {
+        router.replace("/dashboard/calendar/terms");
+        router.refresh();
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [router, supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

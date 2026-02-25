@@ -47,6 +47,12 @@ export default async function HomePage({ params }: Props) {
           >
             {t("register")}
           </Link>
+          <Link
+            href="/calendar/guest"
+            className="block w-full py-3 px-4 rounded-xl border border-primary-200 text-primary-700 font-medium text-center active:scale-[0.98] bg-primary-50"
+          >
+            {t("guestBooking")}
+          </Link>
         </section>
 
         <section className="mt-10">
